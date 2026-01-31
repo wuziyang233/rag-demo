@@ -40,3 +40,6 @@ env/
 # LangChain / LLM cache
 # ======================
 .langchain.db
+
+# vector index (RAG)
+faiss_index/
