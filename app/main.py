@@ -4,7 +4,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 from .schemas import IngestRequest, QueryRequest
-from .embeddings import ingest_texts, query_index
+from .embeddings import ingest_texts, query_index, generate_answer
 
 app = FastAPI(title="RAG Demo API")
 
@@ -38,6 +38,9 @@ async def ingest(req: IngestRequest):
 async def query(req: QueryRequest):
     try:
         results = await query_index(req.question, top_k=req.top_k)
+        if req.generate:
+            answer = await generate_answer(req.question, results)
+            return {"answer": answer, "results": results}
         return {"results": results}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

@@ -7,6 +7,8 @@ from typing import List, Dict
 import numpy as np
 from sentence_transformers import SentenceTransformer
 import faiss
+from dotenv import load_dotenv
+import httpx
 
 MODEL_NAME = "all-MiniLM-L6-v2"
 INDEX_DIR = "faiss_index"
@@ -76,3 +78,51 @@ async def query_index(question: str, top_k: int = 3) -> List[Dict]:
         return results
     return await asyncio.get_running_loop().run_in_executor(None, sync_work, question, top_k)
 
+load_dotenv()
+
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini-realtime-preview-2024-12-17")
+OPENAI_CHAT_COMPLETIONS_URL = os.getenv("OPENAI_CHAT_COMPLETIONS_URL")
+
+async def generate_answer(question: str, results: List[Dict]) -> str:
+    if not OPENAI_API_KEY:
+        raise RuntimeError("OPENAI_API_KEY is not set")
+
+    if not OPENAI_BASE_URL and not OPENAI_CHAT_COMPLETIONS_URL:
+        raise RuntimeError("OPENAI_BASE_URL or OPENAI_CHAT_COMPLETIONS_URL is not set")
+
+    context = "\n\n".join(
+        f"[Doc {i + 1}] {item['text']}" for i, item in enumerate(results)
+    )
+
+    system_prompt = (
+        "You are a helpful assistant. Answer the question using only the provided context. "
+        "If the context does not contain the answer, say you do not know."
+    )
+
+    user_prompt = f"Context:\n{context}\n\nQuestion: {question}"
+
+    url = OPENAI_CHAT_COMPLETIONS_URL
+    if not url:
+        url = f"{OPENAI_BASE_URL.rstrip('/')}/v1/chat/completions"
+
+    headers = {
+        "Authorization": f"Bearer {OPENAI_API_KEY}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "model": OPENAI_MODEL,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        "temperature": 0.2,
+    }
+
+    async with httpx.AsyncClient(timeout=60) as client:
+        resp = await client.post(url, headers=headers, json=payload)
+        resp.raise_for_status()
+        data = resp.json()
+
+    return data["choices"][0]["message"]["content"].strip()

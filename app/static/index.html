@@ -34,7 +34,13 @@ We build RAG demos</textarea>
         <input id="question" value="What is FastAPI?" />
         <label for="topk">Top K</label>
         <input id="topk" type="number" value="3" min="1" />
+        <label>
+          <input id="generate" type="checkbox" /> Generate answer
+        </label>
         <button id="queryBtn">Query</button>
+        <label for="answer">Answer</label>
+        <pre id="answer"></pre>
+        <label for="queryOut">Raw JSON</label>
         <pre id="queryOut"></pre>
       </div>
     </div>
@@ -60,12 +66,16 @@ We build RAG demos</textarea>
       queryBtn.addEventListener("click", async () => {
         const question = document.getElementById("question").value;
         const top_k = Number(document.getElementById("topk").value || 3);
+        const generate = document.getElementById("generate").checked;
         const res = await fetch("/query", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ question, top_k }),
+          body: JSON.stringify({ question, top_k, generate }),
         });
         const data = await res.json();
+        const fallback = data.results && data.results[0] ? data.results[0].text : "";
+        const answer = data.answer || fallback || "(no answer)";
+        document.getElementById("answer").textContent = answer;
         document.getElementById("queryOut").textContent = JSON.stringify(data, null, 2);
       });
     </script>
