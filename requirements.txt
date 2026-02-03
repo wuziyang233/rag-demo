@@ -6,3 +6,11 @@ langchain-text-splitters
 faiss-cpu
 pypdf
 python-dotenv
+
+
+sentence-transformers
+pydantic
+python-multipart
+aiofiles
+httpx
+pytest
